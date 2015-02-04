@@ -1,54 +1,17 @@
-// fltkTest.cpp : 定义控制台应用程序的入口点。
-//
-
-#include "stdafx.h"
 #include <stdlib.h>
 #include <stdio.h>
-#include <math.h>
-#include <Fl.H>
-#include <Fl_Window.H>
-#include <Fl_Button.H>
-#include <fl_ask.H>
-#include <Fl_PNG_Image.H>
 
-//openGL
-#include <gl.h>
-#include <Fl_Gl_Window.H>
-#include <GL\include\glut.h>
+#include "DzGlWindow.h"
 
-//#pragma comment(lib, "glew32.lib")
-#pragma comment(linker, "/subsystem:\"windows\" /entry:\"mainCRTStartup\"")
+CDzGlWindow::~CDzGlWindow()
+{
 
-#  ifndef M_PI
-#    define M_PI            3.14159265358979323846
-#    define M_PI_2          1.57079632679489661923
-#    define M_PI_4          0.78539816339744830962
-#    define M_1_PI          0.31830988618379067154
-#    define M_2_PI          0.63661977236758134308
-#  endif // !M_PI
-
-#  ifndef M_SQRT2
-#    define M_SQRT2         1.41421356237309504880
-#    define M_SQRT1_2       0.70710678118654752440
-#  endif // !M_SQRT2
-
-class CDzGlWindow : public Fl_Gl_Window {
-	void draw();
-	void draw_overlay();
-public:
-	int sides;
-	int overlay_sides;
-	GLuint texName;
-	Fl_PNG_Image *m_pImg;
-	CDzGlWindow(int x, int y, int w, int h, const char *l = 0);
-};
+}
 
 CDzGlWindow::CDzGlWindow(int x, int y, int w, int h, const char *l) :
-Fl_Gl_Window(x, y, w, h, l) {
-	sides = overlay_sides = 3;
+Fl_Gl_Window(x, y, w, h, l) 
+{
 
-	//生成一张贴图
-	m_pImg = new Fl_PNG_Image("D:\\1.png");
 }
 
 //渲染2D纹理
@@ -60,58 +23,118 @@ void CDzGlWindow::draw() {
 		glLoadIdentity();
 		glViewport(0, 0, w(), h());
 	}
+	//创建材质
+	Fl_PNG_Image img("D:\\1.png");
 
-	// draw an amazing but slow graphic:
-	glClear(GL_COLOR_BUFFER_BIT);
-	//  for (int j=1; j<=1000; j++) {
-	glBegin(GL_POLYGON);
+	m_nTextureHeight = img.h();
+	m_nTextureWidth = img.w();
 
-	for (int j = 0; j<sides; j++) 
+	colorRGBA *pPngA = nullptr;
+	colorRGB *pPng = nullptr;
+	switch (img.d())
 	{
-		double ang = j * 2 * M_PI / sides;
-		glColor3f(float(j) / sides, float(j) / sides, float(j) / sides);
-		glVertex3f(cos(ang), sin(ang), 0);		
+	case 1:
+		//pPng = (colorRGBA*)new uchar[img.w() * img.h() * img.d()];
+		break;
+
+	case 2:
+		//pPng = (colorRGBA*)new uchar[img.w() * img.h() * img.d()];
+		break;
+
+	case 3://RGB
+		pPng = (colorRGB*)new uchar[img.w() * img.h() * img.d()];
+		for (int y = 0; y < img.h(); y++)
+		{
+			for (int x = 0; x < img.w(); x++)
+			{
+				pPng[y*img.w() + x].r = img.array[y * img.w() + x * img.d() + 2];
+				pPng[y*img.w() + x].g = img.array[y * img.w() + x * img.d() + 1];
+				pPng[y*img.w() + x].b = img.array[y * img.w() + x * img.d() + 0];
+			}
+		}
+
+		glPixelStorei(GL_UNPACK_ALIGNMENT, 1);
+		glGenTextures(1, &texName);
+		glBindTexture(GL_TEXTURE_2D, texName);
+
+
+		glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_REPEAT);
+		glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_REPEAT);
+		glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
+		glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
+		glTexImage2D(GL_TEXTURE_2D, 0, GL_RGB, img.w(), img.h(), 0, GL_RGB, GL_UNSIGNED_BYTE, pPng);
+		break;
+
+	case 4://RGBA
+		pPngA = (colorRGBA*)new uchar[img.w() * img.h() * img.d()];
+		for (int y = 0; y < img.h(); y++)
+		{
+			for (int x = 0; x < img.w(); x++)
+			{
+				int n = 0;
+				pPngA[y*img.w() + x].r = img.array[y*img.w() + x * 4 + 3];
+				pPngA[y*img.w() + x].g = img.array[y*img.w() + x * 4 + 2];
+				pPngA[y*img.w() + x].b = img.array[y*img.w() + x * 4 + 1];
+				pPngA[y*img.w() + x].a = img.array[y*img.w() + x * 4 + 0];
+			}
+		}
+
+		glPixelStorei(GL_UNPACK_ALIGNMENT, 1);
+		glGenTextures(1, &texName);
+		glBindTexture(GL_TEXTURE_2D, texName);
+
+
+		glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_REPEAT);
+		glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_REPEAT);
+		glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
+		glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
+		glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA, img.w(), img.h(), 0, GL_RGBA, GL_UNSIGNED_BYTE, pPngA);
+		break;
+
+	default:
+		printf("void CDzGlWindow::LoadTexture(void)----error\n");
+		break;
 	}
 
-	glDrawPixels(m_pImg->w(), m_pImg->h(), GL_RGBA8, GL_UNSIGNED_BYTE, m_pImg->data());
+	if (pPng != nullptr)
+		delete[]pPng;
 
+	if (pPngA != nullptr)
+		delete[]pPngA;
+
+
+	//显示纹理
+	glMatrixMode(GL_PROJECTION);
+	glLoadIdentity();
+	
+	glViewport(0, 0, img.w(), img.h());
+	glClearColor(0.0f, 0.0f, 0.0f, 1.0);
+	glClear(GL_COLOR_BUFFER_BIT);
+	
+	glEnable(GL_TEXTURE_2D);
+	glTexEnvf(GL_TEXTURE_ENV, GL_TEXTURE_ENV_MODE, GL_REPLACE);
+	glBindTexture(GL_TEXTURE_2D, texName);
+	
+	glBegin(GL_QUADS);
+	glTexCoord2f(0.0f, 1.0f); glVertex2f(0.0f, 0.0f);
+	glTexCoord2f(1.0f, 1.0f); glVertex2f(1.0f, 0.0f);
+	glTexCoord2f(1.0f, 0.0f); glVertex2f(1.0f, 1.0f);
+	glTexCoord2f(0.0f, 0.0f); glVertex2f(0.0f, 1.0f);
 	glEnd();
-	// }
-	//glutSwapBuffers();
+
+	glFlush();
+
+	//img.draw(0, 0);
+	img.uncache();
 }
 
-void CDzGlWindow::draw_overlay() {
+void CDzGlWindow::draw_overlay() 
+{
 	// the valid() property may be used to avoid reinitializing your
 	// GL transformation for each redraw:
-	//if (!valid()) {
-	//	valid(1);
-	//	glLoadIdentity();
-	//	glViewport(0, 0, w(), h());
-	//}
-	//// draw an amazing graphic:
-	//gl_color(FL_RED);
-	//glBegin(GL_LINE_LOOP);
-	//for (int j = 0; j<overlay_sides; j++) {
-	//	double ang = j * 2 * M_PI / overlay_sides;
-	//	glVertex3f(cos(ang), sin(ang), 0);
-	//}
-	//glEnd();
 }
 
-int main(int argc, char ** argv)
+void CDzGlWindow::LoadTexture(void)
 {
-	Fl_Window window(1024, 768);
 
-	//openGL窗口
-	CDzGlWindow xglWindow(10, 75, window.w() - 20, window.h() - 90);
-	window.end();
-	window.show(argc, argv);
-
-	Fl_PNG_Image img("D:\\1.png");
-	
-	xglWindow.show();
-	xglWindow.redraw();
-
-	return Fl::run();
 }
-
