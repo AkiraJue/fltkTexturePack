@@ -5,7 +5,7 @@
 
 CDzGlWindow::~CDzGlWindow()
 {
-	Release();
+	ReleaseTexture();
 }
 
 CDzGlWindow::CDzGlWindow(int x, int y, int w, int h, const char *l) :
@@ -31,28 +31,46 @@ void CDzGlWindow::draw() {
 	glMatrixMode(GL_PROJECTION);
 	glLoadIdentity();
 
-	//居中显示矩形
-	glViewport((w() / 2 - (m_nTextureWidth / 2)), (h() / 2) - (m_nTextureHeight / 2), m_nTextureWidth, m_nTextureHeight);
-
+	//清空屏幕
 	glClearColor(0.0f, 0.0f, 0.0f, 1.0);
 	glClear(GL_COLOR_BUFFER_BIT);
 
+	//开启2D纹理
 	glEnable(GL_TEXTURE_2D);
 	glTexEnvf(GL_TEXTURE_ENV, GL_TEXTURE_ENV_MODE, GL_REPLACE);
-	glBindTexture(GL_TEXTURE_2D, texName);
-	if (texName == 0)
-		return;
-
-	//缩放矩形
-	//glScalef(0.5, 0.5, 1.0);
-
-	glBegin(GL_QUADS);
-	glTexCoord2f(0.0, 1.0); glVertex3f(-1.0, -1.0, 1.0);
-	glTexCoord2f(1.0, 1.0); glVertex3f(1.0, -1.0, 1.0);
-	glTexCoord2f(1.0, 0.0); glVertex3f(1.0, 1.0, 1.0);
-	glTexCoord2f(0.0, 0.0); glVertex3f(-1.0, 1.0, 1.0);
 	
-	glEnd();
+	int x, y;
+	x = y = 0;
+
+	for (auto it : m_TexList)
+	{
+		//居中显示矩形,设置矩形位置
+		glViewport((int)(x), (int)(y), it->width, it->height);
+		//绑定贴图
+		glBindTexture(GL_TEXTURE_2D, it->tex);
+
+		if (it->tex == 0)
+			continue;
+
+		//缩放矩形
+		//glScalef(0.5, 0.5, 1.0);
+
+		glBegin(GL_QUADS);
+			//RGBA
+			glTexCoord2f(0.0, 1.0); glVertex3f(-1.0, -1.0, 1.0);
+			glTexCoord2f(1.0, 1.0); glVertex3f(1.0, -1.0, 1.0);
+			glTexCoord2f(1.0, 0.0); glVertex3f(1.0, 1.0, 1.0);
+			glTexCoord2f(0.0, 0.0); glVertex3f(-1.0, 1.0, 1.0);
+
+			////BGRA
+			//glTexCoord2f(0.0f, 0.0f); glVertex3f(-1.0, -1.0, 1.0);//左下角
+			//glTexCoord2f(1.0f, 0.0f); glVertex3f(1.0, -1.0, 1.0);// 右下角
+			//glTexCoord2f(1.0f, 1.0f); glVertex3f(1.0, 1.0, 1.0);// 右上角
+			//glTexCoord2f(0.0f, 1.0f); glVertex3f(-1.0, 1.0, 1.0);// 左上角
+		glEnd();
+		
+		x += it->width;
+	}
 
 	glFlush();
 }
@@ -67,15 +85,11 @@ GLuint CDzGlWindow::LoadPNGTexture(string szPath)
 {
 	//创建材质
 	Fl_PNG_Image img(szPath.c_str());
+	GLuint texName = 0;
 
 	if (nullptr == img.array)
 		return 0;
 
-	m_nTextureHeight = img.h();
-	m_nTextureWidth = img.w();
-
-	colorRGBA *pPngA = nullptr;
-	colorRGB *pPng = nullptr;
 	STexInfo *pTex = nullptr;
 
 	switch (img.d())
@@ -93,11 +107,6 @@ GLuint CDzGlWindow::LoadPNGTexture(string szPath)
 		break;
 
 	case 3://RGB
-		pPng = (colorRGB*)new uchar[img.w() * img.h() * img.d()];
-		
-		memset(pPng, 0, img.w() * img.h() * img.d());
-		memcpy(pPng, img.array, img.w() * img.h() * img.d());
-
 		glPixelStorei(GL_UNPACK_ALIGNMENT, 1);
 		glGenTextures(1, &texName);
 		glBindTexture(GL_TEXTURE_2D, texName);
@@ -106,7 +115,7 @@ GLuint CDzGlWindow::LoadPNGTexture(string szPath)
 		glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_REPEAT);
 		glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
 		glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
-		glTexImage2D(GL_TEXTURE_2D, 0, GL_RGB, img.w(), img.h(), 0, GL_RGB, GL_UNSIGNED_BYTE, pPng);
+		glTexImage2D(GL_TEXTURE_2D, 0, GL_RGB, img.w(), img.h(), 0, GL_RGB, GL_UNSIGNED_BYTE, img.array);
 
 		if (0 != texName)
 		{
@@ -120,10 +129,6 @@ GLuint CDzGlWindow::LoadPNGTexture(string szPath)
 		break;
 
 	case 4://RGBA
-		pPngA = (colorRGBA*)new uchar[img.w() * img.h() * img.d()];
-		memset(pPngA, 0, img.w() * img.h() * img.d());
-		memcpy(pPngA, img.array, img.w() * img.h() * img.d());
-
 		glPixelStorei(GL_UNPACK_ALIGNMENT, 1);
 		glGenTextures(1, &texName);
 		glBindTexture(GL_TEXTURE_2D, texName);
@@ -132,7 +137,7 @@ GLuint CDzGlWindow::LoadPNGTexture(string szPath)
 		glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_REPEAT);
 		glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
 		glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
-		glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA, img.w(), img.h(), 0, GL_RGBA, GL_UNSIGNED_BYTE, pPngA);
+		glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA, img.w(), img.h(), 0, GL_RGBA, GL_UNSIGNED_BYTE, img.array);
 
 		if (0 != texName)
 		{
@@ -156,23 +161,21 @@ GLuint CDzGlWindow::LoadPNGTexture(string szPath)
 		m_TexList.push_back(TEX2DINFOLIST::value_type(pTex));
 	}
 
-	if (pPng != nullptr)
-		delete[]pPng;
-
-	if (pPngA != nullptr)
-		delete[]pPngA;
-
+	//清除图片缓存
 	img.uncache();
 
 	return texName;
 }
 
-void CDzGlWindow::Release(void)
+void CDzGlWindow::ReleaseTexture(void)
 {
 	for (auto it : m_TexList)
 	{
 		if (it != nullptr)
-			delete it;
+		{
+			glDeleteTextures(1, &it->tex);
+			delete it;			
+		}
 	}
 
 	m_TexList.clear();
