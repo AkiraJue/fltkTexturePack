@@ -5,6 +5,7 @@
 #include <Fl/Fl_PNG_Image.H>
 #include <vector>
 #include <string>
+#include <FreeImage.h>
 
 using namespace std;
 
@@ -41,6 +42,7 @@ public://enum
 		colorType type;	//贴图类型
 		int width;		//贴图宽
 		int height;		//贴图高
+
 		STexInfo():tex(0), type(eColorMax), width(0), height(0){}
 	};
 
@@ -51,7 +53,7 @@ public:
 	CDzGlWindow(int x, int y, int w, int h, const char *l = 0);
 	~CDzGlWindow(void);
 
-	void Release(void);
+	void ReleaseTexture(void);
 
 	//加载材质
 	//返回值:
@@ -59,9 +61,6 @@ public:
 	//	失败:0
 	GLuint LoadPNGTexture(string szPath);
 private:
-	GLuint texName;
-	int m_nTextureHeight;
-	int m_nTextureWidth;
 
 	TEX2DINFOLIST m_TexList;//贴图信息列表
 };
